@@ -30,7 +30,7 @@
 
 [[main]]
   name = "News"
-  url = "#LatestNews"
+  url = "#latest-news"
   weight = 50
 
 [[main]]
