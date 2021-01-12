@@ -2,7 +2,7 @@
 title: Test Example Project
 summary: Example .
 tags:
-- Deep Learning
+- Latest News Deep Learning
 date: "2020-04-27T00:00:00Z"
 
 # Optional external URL for project (replaces project detail page).
