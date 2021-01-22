@@ -1,0 +1,159 @@
+---
+title: "Heart Disease"
+author: "Author"
+date: "4/26/2020"
+output:
+  word_document: default
+  pdf_document: default
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+Setting the working directory.
+```{r}
+setwd("C:/Users/user/OneDrive/DS/R_Projects/Analysis")
+```
+Required package installation.
+```{r eval=FALSE, include=FALSE}
+install.packages("ggplot2",repos="https://cran.r-project.org/", dependencies=TRUE)
+install.packages("StanHeaders",repos="https://cran.r-project.org/", dependencies=TRUE)
+install.packages("rstan",repos="https://cran.r-project.org/", dependencies=TRUE)
+install.packages("magrittr",repos="https://cran.r-project.org/", dependencies=TRUE) 
+install.packages("dplyr",repos="https://cran.r-project.org/", dependencies=TRUE) 
+```
+Loading all the installed packages.
+```{r}
+library(ggplot2)
+library(StanHeaders)
+library(rstan)
+library(magrittr)
+```
+Loading the data 
+```{r}
+heart.data <- read.csv("C:/Users/user/OneDrive/DS/R_Projects/Analysis/Heart_Disease.csv")
+
+head(heart.data)
+```
+Looking at the structure of the data.
+```{r}
+str(heart.data)
+```
+Check for any missing values in the data and replacing that with zero.
+```{r}
+heart.data[is.na(heart.data)] <- 0
+```
+Identifying outliers with boxplots.
+```{r}
+boxplot(heart.data$age)
+```
+```{r}
+boxplot(heart.data$trestbps)
+```
+```{r}
+boxplot(heart.data$chol)
+```
+Removing outliers using variables tranformation.
+```{r}
+boxplot(log(heart.data$trestbps))
+```
+```{r}
+boxplot(log(heart.data$chol))
+```
+```{r}
+heart.data2 <- read.csv("C:/Users/user/OneDrive/DS/R_Projects/Analysis/Heart_Disease_Modified.csv")
+```
+Removing outliers in income variable that failed after transformation.
+```{r}
+boxplot(log(heart.data2$trestbps))
+```
+```{r}
+boxplot(log(heart.data2$chol))
+```
+Computing the summary statistics of each column in the data.
+```{r}
+summary(heart.data2)
+```
+
+The distribution of the variables
+
+```{r}
+count=table(heart.data2$heart_disease,heart.data2$cp)
+par(mfrow=c(2,2))
+barplot(count,main = "Prevalence of heart disease across chest pain type", xlab = "Chest pain type", ylab = "Numbers",las = 1, col = c("red","blue"), beside=TRUE)
+legend("topright", c("With no chest pain","With chest pain"),  fill = c("red","blue"))
+hist(log(heart.data2$age))
+hist(log(heart.data2$trestbps))
+hist(log(heart.data2$chol))
+
+```
+model {
+   y ~ bernoulli_logit(lambda1 + lambda2 * x1 + lambda3 * x2 + lambda4 * x3);
+}
+
+
+Creating list to contain the data so as to be able to compile the model in stan.
+```{r}
+heart.data_stan <- list(N=length(heart.data2$id),x1=heart.data2$age, x2=heart.data2$trestbps, x3=heart.data2$chol, y= heart.data2$heart_disease)
+```
+
+Modelling using Hamilitonian MCMC (HMC)
+```{r warning=TRUE}
+options(mc.cores = parallel::detectCores())
+
+heart.model_fit <- stan(file='logistic.stan', data=heart.data_stan, init=0,
+                  chains=1, iter=100, seed=1, algorithm = "HMC")
+
+rstan_options(auto_write = TRUE)
+```
+
+Displaying the parameters of the fitted model.
+```{r}
+print(heart.model_fit)
+summary(heart.model_fit)$summary %>% head()
+```
+
+Fitted Model Diagnostics
+```{r}
+plot(heart.model_fit, pars = c("lambda1","lambda2","lambda3","lambda4"))
+traceplot(heart.model_fit)
+```
+Hierarchical Logistic Model
+
+model {
+  mu ~ normal(0, 2);
+  sigma ~ normal(0, 2);
+  for (i in 1:4)
+    lambda[ , i] ~ normal(mu[i], sigma[i]);
+  y ~ bernoulli_logit(lambda[kk, 1] + lambda[kk, 2] .* x1 + lambda[kk, 3] .* x2 + lambda[kk, 4] .* x3 );
+}  
+
+```
+
+Creating list to contain the data so as to be able to compile the model in stan.
+```{r}
+hier_heart.data_stan <- list(K=length(unique(heart.data2$cp)), N=length(heart.data2$id),x1=heart.data2$age, x2=heart.data2$trestbps, x3=heart.data2$chol, kk=heart.data2$cp, y= heart.data2$heart_disease)
+```
+
+Modelling using Hamilitonian MCMC (HMC)
+```{r warning=TRUE}
+options(mc.cores = parallel::detectCores())
+
+hier_heart.model_fit <- stan(file='Hierarchical_Logistic.stan', data=hier_heart.data_stan, init=0, chains=1, iter=100, seed=1, algorithm = "HMC")
+
+rstan_options(auto_write = TRUE)
+```
+
+Displaying the parameters of the fitted model.
+```{r}
+print(hier_heart.model_fit)
+summary(hier_heart.model_fit)$summary %>% head()
+```
+
+Fitted Model Diagnostics
+```{r}
+plot(heart.model_fit, plotfun = "hist", pars = "lambda[,]", include = FALSE)
+traceplot(hier_heart.model_fit)
+```
