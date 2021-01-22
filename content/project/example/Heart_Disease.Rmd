@@ -1,5 +1,7 @@
 ---
 title: "Heart Disease"
+tags:
+- Other
 author: "Author"
 date: "4/26/2020"
 output:
